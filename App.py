@@ -2,137 +2,74 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 import os
-import urllib.parse
 
-st.set_page_config(page_title="Simulador Real de Anúncios e Vendas", layout="wide")
+st.set_page_config(page_title="Gerenciador de Anúncios Sandbox", layout="wide")
 
-# Arquivos de dados locais
-LOGS_FILE = "logs_cliques.csv"
-VENDAS_FILE = "logs_vendas.csv"
+# Arquivos de Dados
+ADS_DB = "meus_anuncios.csv"
+LOGS_DB = "logs_auditoria.csv"
 
-# Verifica se a URL tem parâmetros de tráfego (Simulando o clique real no anúncio)
-params = st.query_params
-destino = params.get("destino", "")
+# --- FUNÇÕES DE SISTEMA ---
+def salvar_anuncio(data):
+    df = pd.DataFrame([data])
+    if os.path.exists(ADS_DB):
+        df.to_csv(ADS_DB, mode='a', header=False, index=False)
+    else:
+        df.to_csv(ADS_DB, index=False)
 
-# --- MODO LANDING PAGE (O usuário clicou no anúncio e caiu aqui) ---
-if destino == "landing":
-    utm_campaign = params.get("utm_campaign", "geral")
-    utm_source = params.get("utm_source", "direto")
-    
-    # Captura IP
-    headers = st.context.headers
-    user_ip = headers.get("X-Forwarded-For", "127.0.0.1")
-    
-    # Registra o clique automaticamente na primeira visualização da sessão
-    if "clique_registrado" not in st.session_state:
-        clique_data = {
-            "Data_Hora": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "IP": user_ip,
-            "Origem": utm_source,
-            "Campanha": utm_campaign,
-            "Acao": "Clique / Visualizacao"
-        }
-        df_clique = pd.DataFrame([clique_data])
-        if os.path.exists(LOGS_FILE):
-            df_c = pd.read_csv(LOGS_FILE)
-            df_c = pd.concat([df_c, df_clique], ignore_index=True)
-        else:
-            df_c = df_clique
-        df_c.to_csv(LOGS_FILE, index=False)
-        st.session_state.clique_registrado = True
+def logar_clique(campanha, link, ip):
+    data = {
+        "Data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "Campanha": campanha,
+        "Link_Destino": link,
+        "IP_Visitante": ip
+    }
+    df = pd.DataFrame([data])
+    if os.path.exists(LOGS_DB):
+        df.to_csv(LOGS_DB, mode='a', header=False, index=False)
+    else:
+        df.to_csv(LOGS_DB, index=False)
 
-    st.title("🛒 Ecossistema / Página de Vendas")
-    st.info(f"🛰️ Tráfego capturado via anúncio! Origem: **{utm_source}** | Campanha: **{utm_campaign}** | IP: **{user_ip}**")
-    
-    st.subheader("Produto: Kit Primavera Master")
-    st.write("O seu clique e o seu IP foram registrados com sucesso no sistema de auditoria.")
-    
-    if st.button("🚀 COMPRAR AGORA (Simular Conversão/Venda)", use_container_width=True):
-        venda_data = {
-            "Data_Hora": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "IP": user_ip,
-            "Campanha": utm_campaign,
-            "Origem": utm_source,
-            "Valor": 297.00,
-            "Status": "Aprovado"
-        }
-        df_venda = pd.DataFrame([venda_data])
-        if os.path.exists(VENDAS_FILE):
-            df_v = pd.read_csv(VENDAS_FILE)
-            df_v = pd.concat([df_v, df_venda], ignore_index=True)
-        else:
-            df_v = df_venda
-        df_v.to_csv(VENDAS_FILE, index=False)
-        
-        st.success("🎉 Venda realizada e computada com sucesso no painel principal!")
-        st.balloons()
-        
-    st.stop()
+# --- INTERFACE ---
+st.title("🧪 Sandbox: Gerenciador de Anúncios")
 
-# --- MODO CENTRAL DE ANÚNCIOS E DASHBOARD ---
-st.title("🌐 Simulador Completo de Rede de Anúncios")
-st.write("Crie anúncios reais, dispare tráfego simulado com rastreamento de IP e acompanhe conversões.")
-
-tab1, tab2, tab3 = st.tabs(["🛠️ 1. Criar Anúncio", "📊 2. Logs de Cliques & IP", "💰 3. Dashboard de Vendas"])
+tab1, tab2, tab3 = st.tabs(["🏗️ Criar Anúncio", "📱 Simular Rede (Feed)", "📊 Auditoria (Recebimento de Dados)"])
 
 with tab1:
-    col_A, col_B = st.columns(2)
-    with col_A:
-        st.subheader("Configuração do Anúncio")
-        plataforma = st.selectbox("Plataforma", ["Meta Ads (IG/FB)", "Google Ads (Search)"])
-        headline = st.text_input("Título", "Domine seus Dados na Primavera")
-        body = st.text_area("Texto", "Escale seu tráfego com nossa estratégia.")
-        utm_campaign = st.text_input("Nome da Campanha (UTM)", "primavera")
-        utm_source = "facebook" if "Meta" in plataforma else "google"
-        
-    with col_B:
-        st.subheader("Preview e Link de Disparo")
-        
-        # Monta os parâmetros de rastreamento apontando para a própria aplicação
-        query_params = {
-            "destino": "landing",
-            "utm_source": utm_source,
-            "utm_medium": "cpc",
-            "utm_campaign": utm_campaign
-        }
-        
-        link_simulado = f"/?{urllib.parse.urlencode(query_params)}"
-        
-        st.markdown(f"""
-            <div style="background:white; border:1px solid #ddd; padding:15px; border-radius:8px; color:black;">
-                <div style="font-size:12px; color:gray; font-weight:bold;">PATROCINADO • {plataforma}</div>
-                <div style="font-weight:bold; font-size:16px; margin-top:5px;">{headline}</div>
-                <div style="font-size:14px; color:#444; margin-top:5px;">{body}</div>
-            </div>
-        """, unsafe_allow_html=True)
-        
-        st.write("### Link Gerado:")
-        st.code(link_simulado, language="text")
-        
-        # Botão que simula o usuário clicando no anúncio real
-        st.link_button("🚀 Simular Clique no Anúncio (Ir para Landing Page)", link_simulado, use_container_width=True)
+    st.header("Configurar Nova Campanha")
+    with st.form("criar_anuncio"):
+        titulo = st.text_input("Título do Anúncio")
+        link = st.text_input("Link do seu Ecossistema (URL final)")
+        campanha = st.text_input("Nome da Campanha (ID)")
+        if st.form_submit_button("Criar e Publicar na Simulação"):
+            salvar_anuncio({"titulo": titulo, "link": link, "campanha": campanha})
+            st.success("Anúncio criado e 'publicado' no simulador!")
 
 with tab2:
-    st.subheader("Auditoria de Cliques e IPs")
-    if os.path.exists(LOGS_FILE):
-        df_logs = pd.read_csv(LOGS_FILE)
-        st.dataframe(df_logs, use_container_width=True)
-        if st.button("Limpar Logs de Cliques"):
-            os.remove(LOGS_FILE)
-            st.rerun()
+    st.header("Simulador de Rede (Onde o cliente clica)")
+    if os.path.exists(ADS_DB):
+        anuncios = pd.read_csv(ADS_DB)
+        for i, row in anuncios.iterrows():
+            st.markdown(f"---")
+            st.write(f"**Anúncio Ativo:** {row['titulo']}")
+            st.write(f"Campanha: {row['campanha']}")
+            # Botão que simula o clique no anúncio real
+            if st.button(f"Simular Clique em: {row['titulo']}", key=i):
+                # Captura IP
+                ip = st.context.headers.get("X-Forwarded-For", "192.168.0.1")
+                logar_clique(row['campanha'], row['link'], ip)
+                st.info(f"CLIQUE EFETUADO! O dado foi enviado para auditoria.")
+                st.rerun()
     else:
-        st.info("Nenhum clique registrado. Clique no botão de teste do anúncio para gerar dados.")
+        st.warning("Nenhum anúncio criado. Vá na aba 'Criar Anúncio'.")
 
 with tab3:
-    st.subheader("Painel Financeiro e Conversões")
-    if os.path.exists(VENDAS_FILE):
-        df_vendas = pd.read_csv(VENDAS_FILE)
-        col1, col2 = st.columns(2)
-        col1.metric(label="Total de Vendas", value=len(df_vendas))
-        col2.metric(label="Faturamento", value=f"R$ {df_vendas['Valor'].sum():.2f}")
-        st.dataframe(df_vendas, use_container_width=True)
-        if st.button("Limpar Dados de Vendas"):
-            os.remove(VENDAS_FILE)
+    st.header("Painel de Auditoria (Recebimento de Dados)")
+    if os.path.exists(LOGS_DB):
+        logs = pd.read_csv(LOGS_DB)
+        st.dataframe(logs, use_container_width=True)
+        if st.button("Limpar Auditoria"):
+            os.remove(LOGS_DB)
             st.rerun()
     else:
-        st.info("Nenhuma venda registrada. Simule uma compra na página de destino.")
+        st.info("Aguardando cliques... Crie um anúncio e simule um clique na aba 2.")
