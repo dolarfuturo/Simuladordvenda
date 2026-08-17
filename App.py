@@ -19,17 +19,31 @@ st.markdown("""
 st.title("🛠️ Sandbox de Criação de Anúncios")
 st.write("Crie seu anúncio, configure as UTMs e valide a integração com seu ecossistema.")
 
+# --- GERENCIAMENTO DE ESTADO PARA OS CAMPOS DA BARRA LATERAL ---
+if 'plataforma_anterior' not in st.session_state:
+    st.session_state.plataforma_anterior = "Meta Ads (IG/FB)"
+if 'utm_source_val' not in st.session_state:
+    st.session_state.utm_source_val = "facebook"
+
 # --- BARRA LATERAL: O CRIADOR ---
 with st.sidebar:
     st.header("1. Configurar Anúncio")
     plataforma = st.selectbox("Plataforma", ["Meta Ads (IG/FB)", "Google Ads (Search)"])
+    
+    # Atualiza o utm_source automaticamente se mudar de plataforma
+    if plataforma != st.session_state.plataforma_anterior:
+        st.session_state.plataforma_anterior = plataforma
+        st.session_state.utm_source_val = "facebook" if "Meta" in plataforma else "google"
+
     headline = st.text_input("Título (Headline)", "Título do seu Anúncio aqui")
     body = st.text_area("Descrição / Corpo do Anúncio", "Texto persuasivo de vendas...")
     
     st.header("2. Destino e Rastreamento")
     url_base = st.text_input("URL do seu Ecossistema", "https://seu-dominio.com.br")
-    utm_campaign = st.text_input("UTM Campaign (ID da Campanha)", "campanha_teste_01")
-    utm_source = st.text_input("UTM Source", "facebook" if "Meta" in plataforma else "google")
+    utm_campaign = st.text_input("UTM Campaign (ID da Campanha)", "primavera")
+    
+    # Input controlado por estado para atualizar dinamicamente
+    utm_source = st.text_input("UTM Source", value=st.session_state.utm_source_val)
 
 # --- LÓGICA DE MONTAGEM DO LINK ---
 query_params = {
@@ -68,8 +82,7 @@ with col2:
     st.write("Copie este link para testar o rastreamento no seu ecossistema:")
     st.code(url_final, language="text")
     
-    if st.button("Abrir link para simular tráfego"):
-        st.markdown(f'<meta http-equiv="refresh" content="0; url={url_final}">', unsafe_allow_html=True)
-        st.success("Redirecionando para o ambiente de teste...")
-
-    st.info("💡 **Dica:** Ao abrir este link, seu ecossistema deve capturar os parâmetros `utm_source` e `utm_campaign` automaticamente.")
+    # Botão nativo e seguro para abrir o link em nova aba
+    st.link_button("🌐 Testar Anúncio (Abrir Destino)", url_final, use_container_width=True)
+    
+    st.info("💡 **Dica:** Ao clicar no botão acima, você simulará o usuário clicando no anúncio criado com a campanha **" + utm_campaign + "**.")
